@@ -7,25 +7,25 @@ import (
 	"strings"
 )
 
-const abortIndex int8 = math.MaxInt8 / 2
+const abortIndex int8 = math.MaxInt8 / 2 //最多 63 个中间件
 
 type HandlerFunc func(*SliceRouterContext)
 
-//router结构体
+// router 结构体
 type SliceRouter struct {
 	groups []*SliceGroup
 }
 
-//group结构体
+// group 结构体
 type SliceGroup struct {
 	*SliceRouter
-	path string
+	path     string
 	handlers []HandlerFunc
 }
 
-//router上下文
+// router上下文
 type SliceRouterContext struct {
-	Rw http.ResponseWriter
+	Rw  http.ResponseWriter
 	Req *http.Request
 	Ctx context.Context
 	*SliceGroup
@@ -35,19 +35,21 @@ type SliceRouterContext struct {
 func newSliceRouterContext(rw http.ResponseWriter, req *http.Request, r *SliceRouter) *SliceRouterContext {
 	newSliceGroup := &SliceGroup{}
 
+	//最长url前缀匹配
 	matchUrlLen := 0
 	for _, group := range r.groups {
+		//fmt.Println("req.RequestURI")
+		//fmt.Println(req.RequestURI)
 		if strings.HasPrefix(req.RequestURI, group.path) {
 			pathLen := len(group.path)
 			if pathLen > matchUrlLen {
 				matchUrlLen = pathLen
-				*newSliceGroup = *group //浅拷贝指针
+				*newSliceGroup = *group //浅拷贝数组指针
 			}
 		}
 	}
 
-	c := &SliceRouterContext{Rw: rw, Req: req, Ctx:req.Context(), SliceGroup: newSliceGroup}
-
+	c := &SliceRouterContext{Rw: rw, Req: req, SliceGroup: newSliceGroup, Ctx: req.Context()}
 	c.Reset()
 	return c
 }
@@ -62,7 +64,7 @@ func (c *SliceRouterContext) Set(key, val interface{}) {
 
 type SliceRouterHandler struct {
 	coreFunc func(*SliceRouterContext) http.Handler
-	router *SliceRouter
+	router   *SliceRouter
 }
 
 func (w *SliceRouterHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
@@ -71,25 +73,24 @@ func (w *SliceRouterHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request
 		c.handlers = append(c.handlers, func(c *SliceRouterContext) {
 			w.coreFunc(c).ServeHTTP(rw, req)
 		})
-
-		c.Reset()
-		c.Next()
 	}
+	c.Reset()
+	c.Next()
 }
 
-func NewSliceRouterHandler (coreFunc func(*SliceRouterContext) http.Handler, router *SliceRouter) *SliceRouterHandler {
+func NewSliceRouterHandler(coreFunc func(*SliceRouterContext) http.Handler, router *SliceRouter) *SliceRouterHandler {
 	return &SliceRouterHandler{
 		coreFunc: coreFunc,
 		router:   router,
 	}
 }
 
-//构造router
+// 构造 router
 func NewSliceRouter() *SliceRouter {
 	return &SliceRouter{}
 }
 
-//创建Group
+// 创建 Group
 func (g *SliceRouter) Group(path string) *SliceGroup {
 	return &SliceGroup{
 		SliceRouter: g,
@@ -97,7 +98,7 @@ func (g *SliceRouter) Group(path string) *SliceGroup {
 	}
 }
 
-//构造回调方法
+// 构造回调方法
 func (g *SliceGroup) Use(middlewares ...HandlerFunc) *SliceGroup {
 	g.handlers = append(g.handlers, middlewares...)
 	existsFlag := false
@@ -106,34 +107,34 @@ func (g *SliceGroup) Use(middlewares ...HandlerFunc) *SliceGroup {
 			existsFlag = true
 		}
 	}
-
 	if !existsFlag {
 		g.SliceRouter.groups = append(g.SliceRouter.groups, g)
 	}
-
 	return g
 }
 
-//从最先加入中间开始回调
+// 从最先加入中间件开始回调
 func (c *SliceRouterContext) Next() {
-	c.index ++
+	c.index++
 	for c.index < int8(len(c.handlers)) {
+		//fmt.Println("c.index")
+		//fmt.Println(c.index)
 		c.handlers[c.index](c)
-		c.index ++
+		c.index++
 	}
 }
 
-//跳出中间件方法
-func (c *SliceRouterContext) Abort()  {
+// 跳出中间件方法
+func (c *SliceRouterContext) Abort() {
 	c.index = abortIndex
 }
 
-//是否跳过了回调
-func (c *SliceRouterContext) IsAbort() bool {
+// 是否跳过了回调
+func (c *SliceRouterContext) IsAborted() bool {
 	return c.index >= abortIndex
 }
 
-//重置回调
-func (c *SliceRouterContext) Reset()  {
+// 重置回调
+func (c *SliceRouterContext) Reset() {
 	c.index = -1
 }
