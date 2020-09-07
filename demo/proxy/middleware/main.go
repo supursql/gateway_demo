@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"gateway_demo/demo/proxy/middleware/middleware"
 	"gateway_demo/demo/proxy/proxy/proxy"
 	"log"
@@ -33,16 +32,19 @@ func main() {
 	//初始化方法数组路由器
 	sliceRouter := middleware.NewSliceRouter()
 
-	//中间件可充当业务逻辑代码
-	sliceRouter.Group("/base").Use(middleware.TraceLogSliceMW(), func(c *middleware.SliceRouterContext) {
-		c.Rw.Write([]byte("test func"))
-	})
+	////中间件可充当业务逻辑代码
+	//sliceRouter.Group("/base").Use(middleware.TraceLogSliceMW(), func(c *middleware.SliceRouterContext) {
+	//	c.Rw.Write([]byte("test func"))
+	//})
+	//
+	////请求到反向代理
+	//sliceRouter.Group("/").Use(middleware.TraceLogSliceMW(), func(c *middleware.SliceRouterContext) {
+	//	fmt.Println("reverseProxy")
+	//	reverseProxy(c).ServeHTTP(c.Rw, c.Req)
+	//})
+	//routerHandler := middleware.NewSliceRouterHandler(nil, sliceRouter)
 
-	//请求到反向代理
-	sliceRouter.Group("/").Use(middleware.TraceLogSliceMW(), func(c *middleware.SliceRouterContext) {
-		fmt.Println("reverseProxy")
-		reverseProxy(c).ServeHTTP(c.Rw, c.Req)
-	})
-	routerHandler := middleware.NewSliceRouterHandler(nil, sliceRouter)
+	sliceRouter.Group("/").Use(middleware.RateLimiter())
+	routerHandler := middleware.NewSliceRouterHandler(reverseProxy, sliceRouter)
 	log.Fatal(http.ListenAndServe(addr, routerHandler))
 }
