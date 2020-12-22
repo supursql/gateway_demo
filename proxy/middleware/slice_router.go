@@ -61,7 +61,44 @@ func (g *SliceGroup) Use(middlewares ...HandlerFunc) *SliceGroup {
 }
 
 func (w *SliceRouterHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	//c :=
+	c := newSliceRouterContext(rw, req, w.router)
+	if w.coreFunc != nil {
+		c.handlers = append(c.handlers, func(routerContext *SliceRouterContext) {
+			w.coreFunc(c).ServeHTTP(rw, req)
+		})
+	}
+	c.Reset()
+	c.Next()
+}
+
+//重制回调
+func (c *SliceRouterContext) Reset() {
+	c.index = -1
+}
+
+//从最先加入的中间件开始回调
+func (c *SliceRouterContext) Next() {
+	c.index++
+	for c.index < int8(len(c.handlers)) {
+		c.handlers[c.index](c)
+		c.index++
+	}
+}
+
+func (c *SliceRouterContext) Abort() {
+	c.index = abortIndex
+}
+
+func (c *SliceRouterContext) IsAbort() bool {
+	return c.index >= abortIndex
+}
+
+func (c *SliceRouterContext) Get(key interface{}) interface{} {
+	return c.Ctx.Value(key)
+}
+
+func (c *SliceRouterContext) Set(key, val interface{}) {
+	c.Ctx = context.WithValue(c.Ctx, key, val)
 }
 
 func newSliceRouterContext(rw http.ResponseWriter, req *http.Request, r *SliceRouter) *SliceRouterContext {
@@ -85,7 +122,7 @@ func newSliceRouterContext(rw http.ResponseWriter, req *http.Request, r *SliceRo
 		Ctx:        req.Context(),
 		SliceGroup: newSliceGroup,
 	}
-	//c.Reset()
+	c.Reset()
 	return c
 }
 
@@ -94,4 +131,8 @@ func NewSliceRouterHandler(coreFunc func(*SliceRouterContext) http.Handler, rout
 		coreFunc: coreFunc,
 		router:   router,
 	}
+}
+
+func NewSliceRouter() *SliceRouter {
+	return &SliceRouter{}
 }

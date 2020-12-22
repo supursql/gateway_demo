@@ -1,8 +1,13 @@
 package proxy
 
 import (
+	"compress/gzip"
+	"gateway_demo/proxy/middleware"
+	"io/ioutil"
+	"math/rand"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"strings"
 	"time"
@@ -19,59 +24,58 @@ var transport = &http.Transport{
 	ExpectContinueTimeout: 1 * time.Second,
 }
 
-//func NewMultipleHostRevereProxy(c *middleware.SliceRouterContext, targets []*url.URL) *httputil.ReverseProxy {
-//	//请求协调者
-//	director := func(req *http.Request) {
-//
-//		targetIndex := rand.Intn(len(targets))
-//		target := targets[targetIndex]
-//		targetQuery := target.RawQuery
-//
-//		req.URL.Scheme = target.Scheme
-//		req.URL.Host = target.Host
-//		req.URL.Path, req.URL.RawPath = joinURLPath(target, req.URL)
-//		if targetQuery == "" || req.URL.RawQuery == "" {
-//			req.URL.RawQuery = targetQuery + req.URL.RawQuery
-//		} else {
-//			req.URL.RawQuery = targetQuery + "&" + req.URL.RawQuery
-//		}
-//		if _, ok := req.Header["User-Agent"]; !ok {
-//			// explicitly disable User-Agent so it's not set to default value
-//			req.Header.Set("User-Agent", "")
-//		}
-//	}
-//
-//	modifyFunc := func(res *http.Response) error {
-//		if strings.Contains(res.Header.Get("Connection"), "Upgrade") {
-//			return nil
-//		}
-//		var payload []byte
-//		var readErr error
-//
-//		if strings.Contains(res.Header.Get("Content-Encoding"), "gzip") {
-//			gr, err := gzip.NewReader(res.Body)
-//			if err != nil {
-//				return err
-//			}
-//			payload, readErr = ioutil.ReadAll(gr)
-//			res.Header.Del("Content-Encoding")
-//		} else {
-//			payload, readErr = ioutil.ReadAll(res.Body)
-//		}
-//
-//		if readErr != nil {
-//			return readErr
-//		}
-//
-//		if res.StatusCode != 200 {
-//			payload = []byte("StatusCode error:" + string(payload))
-//		}
-//
-//
-//		return nil
-//	}
-//	return &httputil.ReverseProxy{Director: director, ModifyResponse: modifyFunc}
-//}
+func NewMultipleHostsReverseProxy(c *middleware.SliceRouterContext, targets []*url.URL) *httputil.ReverseProxy {
+	//请求协调者
+	director := func(req *http.Request) {
+
+		targetIndex := rand.Intn(len(targets))
+		target := targets[targetIndex]
+		targetQuery := target.RawQuery
+
+		req.URL.Scheme = target.Scheme
+		req.URL.Host = target.Host
+		req.URL.Path, req.URL.RawPath = joinURLPath(target, req.URL)
+		if targetQuery == "" || req.URL.RawQuery == "" {
+			req.URL.RawQuery = targetQuery + req.URL.RawQuery
+		} else {
+			req.URL.RawQuery = targetQuery + "&" + req.URL.RawQuery
+		}
+		if _, ok := req.Header["User-Agent"]; !ok {
+			// explicitly disable User-Agent so it's not set to default value
+			req.Header.Set("User-Agent", "")
+		}
+	}
+
+	modifyFunc := func(res *http.Response) error {
+		if strings.Contains(res.Header.Get("Connection"), "Upgrade") {
+			return nil
+		}
+		var payload []byte
+		var readErr error
+
+		if strings.Contains(res.Header.Get("Content-Encoding"), "gzip") {
+			gr, err := gzip.NewReader(res.Body)
+			if err != nil {
+				return err
+			}
+			payload, readErr = ioutil.ReadAll(gr)
+			res.Header.Del("Content-Encoding")
+		} else {
+			payload, readErr = ioutil.ReadAll(res.Body)
+		}
+
+		if readErr != nil {
+			return readErr
+		}
+
+		if res.StatusCode != 200 {
+			payload = []byte("StatusCode error:" + string(payload))
+		}
+
+		return nil
+	}
+	return &httputil.ReverseProxy{Director: director, ModifyResponse: modifyFunc}
+}
 
 func joinURLPath(a, b *url.URL) (path, rawpath string) {
 	if a.RawPath == "" && b.RawPath == "" {
