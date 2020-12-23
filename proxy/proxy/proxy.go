@@ -1,7 +1,9 @@
 package proxy
 
 import (
+	"bytes"
 	"compress/gzip"
+	"fmt"
 	"gateway_demo/proxy/middleware"
 	"io/ioutil"
 	"math/rand"
@@ -9,6 +11,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -71,10 +74,19 @@ func NewMultipleHostsReverseProxy(c *middleware.SliceRouterContext, targets []*u
 		if res.StatusCode != 200 {
 			payload = []byte("StatusCode error:" + string(payload))
 		}
+		c.Set("status_code", res.StatusCode)
+		c.Set("payload", payload)
+		res.Body = ioutil.NopCloser(bytes.NewBuffer(payload))
+		res.ContentLength = int64(len(payload))
+		res.Header.Set("Content-Length", strconv.FormatInt(int64(len(payload)), 10))
 
 		return nil
 	}
-	return &httputil.ReverseProxy{Director: director, ModifyResponse: modifyFunc}
+
+	errFunc := func(w http.ResponseWriter, r *http.Request, err error) {
+		fmt.Println(err)
+	}
+	return &httputil.ReverseProxy{Director: director, ModifyResponse: modifyFunc, Transport: transport, ErrorHandler: errFunc}
 }
 
 func joinURLPath(a, b *url.URL) (path, rawpath string) {
