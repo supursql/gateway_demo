@@ -4,6 +4,7 @@ go 1.14
 
 require (
 	github.com/afex/hystrix-go v0.0.0-20180502004556-fa1af6a1f4f5
+	github.com/apache/thrift v0.13.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/smartystreets/goconvey v1.6.4 // indirect
 	golang.org/x/net v0.0.0-20190311183353-d8887717615a

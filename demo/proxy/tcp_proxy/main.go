@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"gateway_demo/proxy/load_balance"
-	"gateway_demo/proxy/proxy"
+	proxy2 "gateway_demo/proxy/proxy"
 	"gateway_demo/proxy/tcp_middleware"
 	"gateway_demo/proxy/tcp_proxy"
 	"net"
@@ -32,9 +32,26 @@ func main() {
 	//tcpServ.ListenAndServe()
 
 	//代理测试
+	//rb := load_balance.LoadBalanceFactory(load_balance.LbWeightRoundRobin)
+	//rb.Add("127.0.0.1:6001", "100")
+	//proxy := proxy.NewTcpBalanceReverseProxy(&tcp_middleware.TcpSliceRouterContext{}, rb)
+	//tcpServ := tcp_proxy.TcpServer{Addr: addr, Handler: proxy}
+	//fmt.Println("Starting tcp_proxy at " + addr)
+	//tcpServ.ListenAndServe()
+
+	//redis服务器测试
+	//rb := load_balance.LoadBalanceFactory(load_balance.LbWeightRoundRobin)
+	//rb.Add("127.0.0.1:6379", "40")
+	//proxy := proxy2.NewTcpBalanceReverseProxy(&tcp_middleware.TcpSliceRouterContext{}, rb)
+	//tcpServ := tcp_proxy.TcpServer{Addr: addr, Handler: proxy}
+	//fmt.Println("Starting tcp_proxy at " + addr)
+	//tcpServ.ListenAndServe()
+
+	//http 服务器测试
 	rb := load_balance.LoadBalanceFactory(load_balance.LbWeightRoundRobin)
-	rb.Add("127.0.0.1:7002", "100")
-	proxy := proxy.NewTcpBalanceReverseProxy(&tcp_middleware.TcpSliceRouterContext{}, rb)
+	rb.Add("127.0.0.1:2003", "40")
+	rb.Add("127.0.0.1:2004", "40")
+	proxy := proxy2.NewTcpBalanceReverseProxy(&tcp_middleware.TcpSliceRouterContext{}, rb)
 	tcpServ := tcp_proxy.TcpServer{Addr: addr, Handler: proxy}
 	fmt.Println("Starting tcp_proxy at " + addr)
 	tcpServ.ListenAndServe()
