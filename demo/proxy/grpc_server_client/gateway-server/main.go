@@ -13,7 +13,7 @@ import (
 
 var (
 	serverAddr         = ":8001"
-	grpcServerEndpoint = flag.String("grpc-server-endpoint", "localhost:50055", "gRPC server endpoint")
+	grpcServerEndpoint = flag.String("grpc_reverse_proxy-server-endpoint", "localhost:50055", "gRPC server endpoint")
 )
 
 func run() error {

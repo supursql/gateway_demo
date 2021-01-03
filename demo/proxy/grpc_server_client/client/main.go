@@ -5,7 +5,9 @@ import (
 	"flag"
 	"fmt"
 	pb "gateway_demo/demo/proxy/grpc_server_client/proto"
+	"gateway_demo/proxy/grpc_proxy"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/metadata"
 	"io"
 	"log"
@@ -13,7 +15,7 @@ import (
 	"time"
 )
 
-var addr = flag.String("addr", "localhost:50055", "the address to connect to")
+var addr = flag.String("addr", "localhost:50051", "the address to connect to")
 
 const (
 	timestampFormat = time.StampNano // "Jan _2 15:04:05.000"
@@ -127,6 +129,10 @@ func bidirectionalWithMetadata(c pb.EchoClient, message string) {
 
 const message = "this is examples/metadata"
 
+func init() {
+	encoding.RegisterCodec(grpc_proxy.Codec())
+}
+
 func main() {
 	flag.Parse()
 	wg := sync.WaitGroup{}
@@ -134,7 +140,7 @@ func main() {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			conn, err := grpc.Dial(*addr, grpc.WithInsecure())
+			conn, err := grpc.Dial(*addr, grpc.WithInsecure(), grpc.WithDefaultCallOptions(grpc.CallContentSubtype("mycodec")))
 			if err != nil {
 				log.Fatalf("did not connect: %v", err)
 			}
