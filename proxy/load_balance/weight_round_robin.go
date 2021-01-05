@@ -2,7 +2,9 @@ package load_balance
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
+	"strings"
 )
 
 type WeightRoundRobinBalance struct {
@@ -11,7 +13,7 @@ type WeightRoundRobinBalance struct {
 	rsw      []int
 
 	//观察主体
-	//conf 	 LoadBalanceConf
+	conf LoadBalanceConf
 }
 
 type WeightNode struct {
@@ -69,4 +71,18 @@ func (r *WeightRoundRobinBalance) Next() string {
 
 func (r *WeightRoundRobinBalance) Get(key string) (string, error) {
 	return r.Next(), nil
+}
+
+func (r *WeightRoundRobinBalance) SetConf(conf LoadBalanceConf) {
+	r.conf = conf
+}
+
+func (r *WeightRoundRobinBalance) Update() {
+	if conf, ok := r.conf.(*LoadBalanceZkConf); ok {
+		fmt.Println("WeightRoundRobinBalance get conf:", conf.GetConf())
+		r.rss = nil
+		for _, ip := range conf.GetConf() {
+			r.Add(strings.Split(ip, ",")...)
+		}
+	}
 }

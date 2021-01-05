@@ -6,6 +6,7 @@ import (
 	"hash/crc32"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 )
 
@@ -33,7 +34,7 @@ type ConsistentHashBalance struct {
 	hashMap  map[uint32]string //节点哈希和Key的map，键是hash值，值是节点Key
 
 	//观察主体
-	//conf		LoadBalanceConf
+	conf LoadBalanceConf
 }
 
 func NewConsistentHashBalance(replicas int, fn Hash) *ConsistentHashBalance {
@@ -85,4 +86,19 @@ func (c *ConsistentHashBalance) Get(key string) (string, error) {
 	c.mux.RLock()
 	defer c.mux.RUnlock()
 	return c.hashMap[c.keys[idx]], nil
+}
+
+func (c *ConsistentHashBalance) SetConf(conf LoadBalanceConf) {
+	c.conf = conf
+}
+
+func (c *ConsistentHashBalance) Update() {
+	if conf, ok := c.conf.(*LoadBalanceZkConf); !ok {
+		fmt.Println("Update get conf:", conf.GetConf())
+		c.keys = nil
+		c.hashMap = nil
+		for _, ip := range conf.GetConf() {
+			c.Add(strings.Split(ip, ",")...)
+		}
+	}
 }

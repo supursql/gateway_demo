@@ -32,6 +32,14 @@ func (z *ZkManager) Close() {
 	return
 }
 
+func (z *ZkManager) GetOrSet(path string) *ZkManager {
+	ex, _, _ := z.conn.Exists(path)
+	if !ex {
+		z.conn.Create(path, nil, 0, zk.WorldACL(zk.PermAll))
+	}
+	return z
+}
+
 //获取配置
 func (z *ZkManager) GetPathData(nodePath string) ([]byte, *zk.Stat, error) {
 	return z.conn.Get(nodePath)
